@@ -51,64 +51,72 @@
                 <div class="avatar" id="userAvatar">👤</div>
                 <h3 id="userName">Loading...</h3>
                 <p id="userEmail">...</p>
+                <p>Last login: <span id="lastLogin"></span></p>
             </div>
             <nav class="dashboard-nav">
-                <a href="mytickets.html" class="active">My Tickets</a>
-                <a href="purchases.html">My Purchases</a>
-                <a href="security.html">Security</a>
-                <a href="settings.html">Settings</a>
+                <a href="#active" class="active">Active Listings</a>
+                <a href="#sold">Sold Tickets</a>
+                <a href="#purchased">My Purchases</a>
+                <a href="#security">Security</a>
             </nav>
         </div>
 
         <div class="main-content">
-            <!-- SECTION 1: ACTIVE LISTINGS -->
-            <section id="myTickets" class="dashboard-section">
-                <h2>Your Active Listings</h2>
+            <!-- ACTIVE LISTINGS -->
+            <section id="active" class="dashboard-section">
+                <div class="section-header">
+                    <h2>Your Active Listings</h2>
+                    <button class="btn small" onclick="refreshData()">Refresh</button>
+                </div>
                 <div class="ticket-grid" id="activeListings">
                     <div class="loading">Loading your tickets...</div>
                 </div>
             </section>
 
-            <!-- SECTION 2: PURCHASE HISTORY -->
-            <section id="purchases" class="dashboard-section hidden">
-                <h2>Your Purchases</h2>
-                <div class="ticket-grid" id="purchaseHistory">
-                    <div class="empty">No purchases yet.</div>
+            <!-- SOLD TICKETS -->
+            <section id="sold" class="dashboard-section hidden">
+                <div class="section-header">
+                    <h2>Sold Tickets</h2>
+                    <div class="earnings">Total earned: ₹<span id="totalEarned">0</span></div>
+                </div>
+                <div class="ticket-grid" id="soldTickets">
+                    <div class="empty">No sold tickets yet</div>
                 </div>
             </section>
 
-            <!-- SECTION 3: SECURITY -->
+            <!-- PURCHASED TICKETS -->
+            <section id="purchased" class="dashboard-section hidden">
+                <h2>Your Purchases</h2>
+                <div class="ticket-grid" id="purchasedTickets">
+                    <div class="empty">No purchased tickets yet</div>
+                </div>
+            </section>
+
+            <!-- SECURITY -->
             <section id="security" class="dashboard-section hidden">
                 <h2>Security Settings</h2>
                 <div class="security-card">
-                    <h3>Session Management</h3>
-                    <p>Last login: <span id="lastLogin">...</span></p>
+                    <h3>Active Sessions</h3>
+                    <div class="session-info">
+                        <p>Current device: <strong>This browser</strong></p>
+                        <p>Last activity: <span id="currentSessionTime">Just now</span></p>
+                    </div>
                     <button id="terminateSessions" class="btn danger">Terminate All Other Sessions</button>
                 </div>
                 <div class="security-card">
                     <h3>Change Password</h3>
                     <form id="passwordForm">
-                        <input type="password" id="currentPassword" placeholder="Current Password" required>
-                        <input type="password" id="newPassword" placeholder="New Password (min 8 chars)" minlength="8" required>
+                        <div class="form-group">
+                            <label for="currentPassword">Current Password</label>
+                            <input type="password" id="currentPassword" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="newPassword">New Password</label>
+                            <input type="password" id="newPassword" minlength="8" required>
+                        </div>
                         <button type="submit" class="btn primary">Update Password</button>
                     </form>
                 </div>
-            </section>
-
-            <!-- SECTION 4: ACCOUNT SETTINGS -->
-            <section id="settings" class="dashboard-section hidden">
-                <h2>Account Settings</h2>
-                <form id="profileForm">
-                    <div class="form-group">
-                        <label for="fullName">Full Name</label>
-                        <input type="text" id="fullName" required minlength="3">
-                    </div>
-                    <div class="form-group">
-                        <label for="phone">Phone Number</label>
-                        <input type="tel" id="phone" pattern="[0-9]{10}" required>
-                    </div>
-                    <button type="submit" class="btn primary">Save Changes</button>
-                </form>
             </section>
         </div>
     </main>
@@ -142,36 +150,45 @@
                 .replace(/\//g, '&#x2F;');
         }
 
-        function validatePhone(phone) {
-            return /^[0-9]{10}$/.test(phone);
-        }
-
         // 📦 DATA LOADING
         async function loadUserData() {
             try {
                 // Get current user
-                const userData = JSON.parse(localStorage.getItem('currentUser') || sessionStorage.getItem('currentUser'));
-                if (!userData?.id) throw new Error("Invalid session");
+                const user = JSON.parse(localStorage.getItem('currentUser') || sessionStorage.getItem('currentUser'));
+                if (!user?.id) throw new Error("Invalid session");
 
-                // Fetch all users
+                // Fetch all data
                 const response = await fetch(API_URL, { headers });
                 const data = await response.json();
+                const tickets = data.tickets || [];
                 const users = data.users || [];
-                const currentUser = users.find(u => u.id === userData.id);
                 
-                if (!currentUser) {
-                    logout();
-                    return;
-                }
-
-                // Update UI
+                // Update user info
+                const currentUser = users.find(u => u.id === user.id) || {};
                 document.getElementById('userName').textContent = sanitizeInput(currentUser.fullname || 'User');
-                document.getElementById('userEmail').textContent = sanitizeInput(currentUser.email);
-                document.getElementById('lastLogin').textContent = 
-                    currentUser.lastLogin ? new Date(currentUser.lastLogin).toLocaleString() : 'Never';
-
-                // Load tickets
-                loadTickets(currentUser.id);
+                document.getElementById('userEmail').textContent = sanitizeInput(currentUser.email || '');
+                document.getElementById('lastLogin').textContent = currentUser.lastLogin ? 
+                    new Date(currentUser.lastLogin).toLocaleString() : 'Never';
+                
+                // Filter tickets
+                const activeTickets = tickets.filter(t => 
+                    t.sellerId === user.id && t.status === 'active'
+                );
+                const soldTickets = tickets.filter(t => 
+                    t.sellerId === user.id && t.status === 'sold'
+                );
+                const purchasedTickets = tickets.filter(t => 
+                    t.buyerId === user.id
+                );
+                
+                // Calculate earnings
+                const totalEarned = soldTickets.reduce((sum, t) => sum + (t.sellingPrice || 0), 0);
+                document.getElementById('totalEarned').textContent = totalEarned;
+                
+                // Display tickets
+                displayTickets('activeListings', activeTickets);
+                displayTickets('soldTickets', soldTickets);
+                displayTickets('purchasedTickets', purchasedTickets);
             } catch (error) {
                 console.error("Dashboard error:", error);
                 alert("Failed to load data. Please try again.");
@@ -179,43 +196,68 @@
             }
         }
 
-        async function loadTickets(userId) {
-            try {
-                const response = await fetch(API_URL, { headers });
-                const data = await response.json();
-                const tickets = data.tickets || [];
-
-                // Filter user's active listings
-                const activeListings = tickets.filter(t => 
-                    t.sellerId === userId && t.status === 'active'
-                );
-
-                // Display listings
-                const listingsContainer = document.getElementById('activeListings');
-                if (activeListings.length > 0) {
-                    listingsContainer.innerHTML = activeListings.map(ticket => `
-                        <div class="ticket-card">
-                            <h3>${sanitizeInput(ticket.fromStation)} → ${sanitizeInput(ticket.toStation)}</h3>
-                            <p>${new Date(ticket.departure).toLocaleString()}</p>
-                            <div class="ticket-price">₹${ticket.sellingPrice}</div>
-                            <button class="btn small" onclick="cancelListing('${ticket.id}')">Cancel</button>
-                        </div>
-                    `).join('');
-                } else {
-                    listingsContainer.innerHTML = '<div class="empty">No active listings.</div>';
-                }
-            } catch (error) {
-                document.getElementById('activeListings').innerHTML = 
-                    '<div class="error">Failed to load tickets.</div>';
+        function displayTickets(containerId, tickets) {
+            const container = document.getElementById(containerId);
+            
+            if (tickets.length === 0) {
+                container.innerHTML = '<div class="empty">No tickets found</div>';
+                return;
             }
+            
+            container.innerHTML = tickets.map(ticket => `
+                <div class="ticket-card">
+                    <div class="ticket-header">
+                        <h3>${sanitizeInput(ticket.fromStation)} → ${sanitizeInput(ticket.toStation)}</h3>
+                        <span class="price">₹${ticket.sellingPrice}</span>
+                    </div>
+                    <div class="ticket-body">
+                        <p><strong>Train:</strong> ${sanitizeInput(ticket.trainName || '')}</p>
+                        <p><strong>Departure:</strong> ${new Date(ticket.departure).toLocaleString()}</p>
+                        ${ticket.status === 'sold' ? `
+                            <p><strong>Sold on:</strong> ${new Date(ticket.soldAt).toLocaleString()}</p>
+                        ` : ''}
+                    </div>
+                    ${ticket.status === 'active' ? `
+                        <div class="ticket-actions">
+                            <button class="btn small danger" onclick="cancelTicket('${ticket.id}')">Cancel</button>
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
         }
 
         // 🛠️ DASHBOARD FUNCTIONS
-        function cancelListing(ticketId) {
+        async function cancelTicket(ticketId) {
             if (!confirm("Are you sure you want to cancel this listing?")) return;
             
-            // Implement cancellation logic
-            alert("Ticket listing cancelled (implementation would update JSONBin)");
+            try {
+                // Fetch current data
+                const response = await fetch(API_URL, { headers });
+                const data = await response.json();
+                const tickets = data.tickets || [];
+                
+                // Update ticket
+                const updatedTickets = tickets.map(t => 
+                    t.id === ticketId ? { ...t, status: 'cancelled' } : t
+                );
+                
+                // Save back to JSONBin
+                await fetch(API_URL, {
+                    method: 'PUT',
+                    headers,
+                    body: JSON.stringify({ ...data, tickets: updatedTickets })
+                });
+                
+                alert("Ticket cancelled successfully");
+                loadUserData(); // Refresh
+            } catch (error) {
+                alert("Failed to cancel ticket. Please try again.");
+            }
+        }
+
+        function refreshData() {
+            document.getElementById('activeListings').innerHTML = '<div class="loading">Refreshing...</div>';
+            loadUserData();
         }
 
         function logout() {
@@ -246,7 +288,20 @@
             // Logout button
             document.getElementById('logoutBtn').addEventListener('click', logout);
 
-            // Load data
+            // Password form
+            document.getElementById('passwordForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                alert("Password change functionality would update JSONBin in production");
+            });
+
+            // Terminate sessions
+            document.getElementById('terminateSessions').addEventListener('click', function() {
+                if (confirm("Terminate all other sessions? You'll need to login again on other devices.")) {
+                    alert("Session termination would be implemented with a proper backend");
+                }
+            });
+
+            // Load initial data
             loadUserData();
         });
     </script>
