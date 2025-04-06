@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Tickets | TrainHawk</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- 🔒 SECURITY LAYER 1: IMMEDIATE ACCESS CONTROL -->
+    <script>
+        // Block unauthorized access
+        (function() {
+            const userData = localStorage.getItem('currentUser') || sessionStorage.getItem('currentUser');
+            if (!userData) {
+                window.location.href = 'login.html?redirect=mytickets';
+            }
+            
+            // Validate session integrity
+            if (localStorage.getItem('securityCheck') !== 'valid') {
+                localStorage.clear();
+                sessionStorage.clear();
+                window.location.href = 'security-error.html';
+            }
+            
+            // Prevent iframe embedding (clickjacking)
+            if (window !== window.top) {
+                window.top.location = window.location;
+            }
+        })();
+    </script>
+
+    <!-- NAVBAR -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="logo">TrainHawk</div>
+            <div class="nav-links">
+                <a href="index.html">Home</a>
+                <a href="search.html">Find Tickets</a>
+                <a href="sell.html">Sell Tickets</a>
+                <a href="dashboard.html">Dashboard</a>
+                <a href="login.html" id="logoutBtn">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- MAIN CONTENT -->
+    <main class="container">
+        <h1>Your Tickets</h1>
+        
+        <!-- TABS -->
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="active">Active Listings</button>
+            <button class="tab-btn" data-tab="sold">Sold Tickets</button>
+            <button class="tab-btn" data-tab="purchased">Purchased Tickets</button>
+        </div>
+        
+        <!-- ACTIVE LISTINGS -->
+        <div id="active" class="tab-content active">
+            <h2>Your Active Listings</h2>
+            <div class="ticket-grid" id="activeListings">
+                <div class="loading">Loading your tickets...</div>
+            </div>
+        </div>
+        
+        <!-- SOLD TICKETS -->
+        <div id="sold" class="tab-content">
+            <h2>Sold Tickets</h2>
+            <div class="ticket-grid" id="soldTickets">
+                <div class="empty">No sold tickets yet.</div>
+            </div>
+        </div>
+        
+        <!-- PURCHASED TICKETS -->
+        <div id="purchased" class="tab-content">
+            <h2>Purchased Tickets</h2>
+            <div class="ticket-grid" id="purchasedTickets">
+                <div class="empty">No purchased tickets yet.</div>
+            </div>
+        </div>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2025 TrainHawk Technologies. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- 🛡️ SECURITY LAYER 2: DATA HANDLING -->
+    <script>
+        // JSONBin Configuration
+        const API_KEY = '$2a$10$6n8X61LVRh8bI6Grq4IDMuWbHKnBi5z3xmrQ8oxry3k0oUvSTj8ie';
+        const BIN_ID = '67f2dbc28561e97a50f9e0f9';
+        const API_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+        
+        const headers = {
+            'Content-Type': 'application/json',
+            'X-Master-Key': API_KEY,
+            'X-Bin-Meta': 'false'
+        };
+
+        // 🔐 SECURITY FUNCTIONS
+        function sanitizeInput(input) {
+            if (!input) return '';
+            return input.toString()
+                .replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+                .replace(/\//g, '&#x2F;');
+        }
+
+        // 📦 DATA LOADING
+        async function loadUserTickets() {
+            try {
+                // Get current user
+                const userData = JSON.parse(localStorage.getItem('currentUser') || sessionStorage.getItem('currentUser'));
+                if (!userData?.id) throw new Error("Invalid session");
+
+                // Fetch all tickets
+                const response = await fetch(API_URL, { headers });
+                const data = await response.json();
+                const tickets = data.tickets || [];
+                
+                // Filter tickets
+                const activeListings = tickets.filter(t => 
+                    t.sellerId === userData.id && t.status === 'active'
+                );
+                
+                const soldTickets = tickets.filter(t => 
+                    t.sellerId === userData.id && t.status === 'sold'
+                );
+                
+                const purchasedTickets = tickets.filter(t => 
+                    t.buyerId === userData.id
+                );
+
+                // Display tickets
+                displayTickets('activeListings', activeListings);
+                displayTickets('soldTickets', soldTickets);
+                displayTickets('purchasedTickets', purchasedTickets);
+            } catch (error) {
+                console.error("Ticket load error:", error);
+                document.getElementById('activeListings').innerHTML = 
+                    '<div class="error">Failed to load tickets. Please try again.</div>';
+                logout();
+            }
+        }
+
+        function displayTickets(containerId, tickets) {
+            const container = document.getElementById(containerId);
+            
+            if (tickets.length === 0) {
+                container.innerHTML = '<div class="empty">No tickets found.</div>';
+                return;
+            }
+            
+            container.innerHTML = tickets.map(ticket => `
+                <div class="ticket-card">
+                    <h3>${sanitizeInput(ticket.fromStation)} → ${sanitizeInput(ticket.toStation)}</h3>
+                    <p>${new Date(ticket.departure).toLocaleString()}</p>
+                    <div class="ticket-meta">
+                        <span class="price">₹${ticket.sellingPrice}</span>
+                        <span class="status ${ticket.status}">${ticket.status.toUpperCase()}</span>
+                    </div>
+                    ${ticket.status === 'active' ? 
+                        `<button class="btn small danger" onclick="cancelTicket('${ticket.id}')">Cancel</button>` : 
+                        ''
+                    }
+                </div>
+            `).join('');
+        }
+
+        // 🛠️ TICKET FUNCTIONS
+        function cancelTicket(ticketId) {
+            if (!confirm("Are you sure you want to cancel this listing?")) return;
+            
+            // In a real app, this would update JSONBin
+            alert("Ticket cancelled (would update JSONBin in production)");
+            loadUserTickets(); // Refresh
+        }
+
+        function logout() {
+            localStorage.removeItem('currentUser');
+            sessionStorage.removeItem('currentUser');
+            window.location.href = 'index.html';
+        }
+
+        // 🚀 INITIALIZE
+        document.addEventListener('DOMContentLoaded', function() {
+            // Tab switching
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    
+                    btn.classList.add('active');
+                    document.getElementById(btn.dataset.tab).classList.add('active');
+                });
+            });
+
+            // Logout button
+            document.getElementById('logoutBtn').addEventListener('click', logout);
+
+            // Load tickets
+            loadUserTickets();
+        });
+    </script>
+</body>
+</html>
