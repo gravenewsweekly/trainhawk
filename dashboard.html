@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard | TrainHawk</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- 🔒 SECURITY LAYER 1: IMMEDIATE ACCESS CONTROL -->
+    <script>
+        // Block unauthorized access
+        (function() {
+            const userData = localStorage.getItem('currentUser') || sessionStorage.getItem('currentUser');
+            if (!userData) {
+                window.location.href = 'login.html?redirect=dashboard';
+            }
+            
+            // Validate session integrity
+            if (localStorage.getItem('securityCheck') !== 'valid') {
+                localStorage.clear();
+                sessionStorage.clear();
+                window.location.href = 'security-error.html';
+            }
+            
+            // Prevent iframe embedding (clickjacking)
+            if (window !== window.top) {
+                window.top.location = window.location;
+            }
+        })();
+    </script>
+
+    <!-- NAVBAR -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="logo">TrainHawk</div>
+            <div class="nav-links">
+                <a href="index.html">Home</a>
+                <a href="search.html">Find Tickets</a>
+                <a href="sell.html">Sell Tickets</a>
+                <a href="dashboard.html" class="active">Dashboard</a>
+                <a href="login.html" id="logoutBtn">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- DASHBOARD -->
+    <main class="dashboard-container">
+        <div class="sidebar">
+            <div class="user-profile">
+                <div class="avatar" id="userAvatar">👤</div>
+                <h3 id="userName">Loading...</h3>
+                <p id="userEmail">...</p>
+            </div>
+            <nav class="dashboard-nav">
+                <a href="mytickets.html" class="active">My Tickets</a>
+                <a href="purchases.html">My Purchases</a>
+                <a href="security.html">Security</a>
+                <a href="settings.html">Settings</a>
+            </nav>
+        </div>
+
+        <div class="main-content">
+            <!-- SECTION 1: ACTIVE LISTINGS -->
+            <section id="myTickets" class="dashboard-section">
+                <h2>Your Active Listings</h2>
+                <div class="ticket-grid" id="activeListings">
+                    <div class="loading">Loading your tickets...</div>
+                </div>
+            </section>
+
+            <!-- SECTION 2: PURCHASE HISTORY -->
+            <section id="purchases" class="dashboard-section hidden">
+                <h2>Your Purchases</h2>
+                <div class="ticket-grid" id="purchaseHistory">
+                    <div class="empty">No purchases yet.</div>
+                </div>
+            </section>
+
+            <!-- SECTION 3: SECURITY -->
+            <section id="security" class="dashboard-section hidden">
+                <h2>Security Settings</h2>
+                <div class="security-card">
+                    <h3>Session Management</h3>
+                    <p>Last login: <span id="lastLogin">...</span></p>
+                    <button id="terminateSessions" class="btn danger">Terminate All Other Sessions</button>
+                </div>
+                <div class="security-card">
+                    <h3>Change Password</h3>
+                    <form id="passwordForm">
+                        <input type="password" id="currentPassword" placeholder="Current Password" required>
+                        <input type="password" id="newPassword" placeholder="New Password (min 8 chars)" minlength="8" required>
+                        <button type="submit" class="btn primary">Update Password</button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- SECTION 4: ACCOUNT SETTINGS -->
+            <section id="settings" class="dashboard-section hidden">
+                <h2>Account Settings</h2>
+                <form id="profileForm">
+                    <div class="form-group">
+                        <label for="fullName">Full Name</label>
+                        <input type="text" id="fullName" required minlength="3">
+                    </div>
+                    <div class="form-group">
+                        <label for="phone">Phone Number</label>
+                        <input type="tel" id="phone" pattern="[0-9]{10}" required>
+                    </div>
+                    <button type="submit" class="btn primary">Save Changes</button>
+                </form>
+            </section>
+        </div>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2025 TrainHawk Technologies. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- 🛡️ SECURITY LAYER 2: DATA HANDLING -->
+    <script>
+        // JSONBin Configuration
+        const API_KEY = '$2a$10$6n8X61LVRh8bI6Grq4IDMuWbHKnBi5z3xmrQ8oxry3k0oUvSTj8ie';
+        const BIN_ID = '67f2dbc28561e97a50f9e0f9';
+        const API_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+        
+        const headers = {
+            'Content-Type': 'application/json',
+            'X-Master-Key': API_KEY,
+            'X-Bin-Meta': 'false'
+        };
+
+        // 🔐 SECURITY FUNCTIONS
+        function sanitizeInput(input) {
+            if (!input) return '';
+            return input.toString()
+                .replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+                .replace(/\//g, '&#x2F;');
+        }
+
+        function validatePhone(phone) {
+            return /^[0-9]{10}$/.test(phone);
+        }
+
+        // 📦 DATA LOADING
+        async function loadUserData() {
+            try {
+                // Get current user
+                const userData = JSON.parse(localStorage.getItem('currentUser') || sessionStorage.getItem('currentUser'));
+                if (!userData?.id) throw new Error("Invalid session");
+
+                // Fetch all users
+                const response = await fetch(API_URL, { headers });
+                const data = await response.json();
+                const users = data.users || [];
+                const currentUser = users.find(u => u.id === userData.id);
+                
+                if (!currentUser) {
+                    logout();
+                    return;
+                }
+
+                // Update UI
+                document.getElementById('userName').textContent = sanitizeInput(currentUser.fullname || 'User');
+                document.getElementById('userEmail').textContent = sanitizeInput(currentUser.email);
+                document.getElementById('lastLogin').textContent = 
+                    currentUser.lastLogin ? new Date(currentUser.lastLogin).toLocaleString() : 'Never';
+
+                // Load tickets
+                loadTickets(currentUser.id);
+            } catch (error) {
+                console.error("Dashboard error:", error);
+                alert("Failed to load data. Please try again.");
+                logout();
+            }
+        }
+
+        async function loadTickets(userId) {
+            try {
+                const response = await fetch(API_URL, { headers });
+                const data = await response.json();
+                const tickets = data.tickets || [];
+
+                // Filter user's active listings
+                const activeListings = tickets.filter(t => 
+                    t.sellerId === userId && t.status === 'active'
+                );
+
+                // Display listings
+                const listingsContainer = document.getElementById('activeListings');
+                if (activeListings.length > 0) {
+                    listingsContainer.innerHTML = activeListings.map(ticket => `
+                        <div class="ticket-card">
+                            <h3>${sanitizeInput(ticket.fromStation)} → ${sanitizeInput(ticket.toStation)}</h3>
+                            <p>${new Date(ticket.departure).toLocaleString()}</p>
+                            <div class="ticket-price">₹${ticket.sellingPrice}</div>
+                            <button class="btn small" onclick="cancelListing('${ticket.id}')">Cancel</button>
+                        </div>
+                    `).join('');
+                } else {
+                    listingsContainer.innerHTML = '<div class="empty">No active listings.</div>';
+                }
+            } catch (error) {
+                document.getElementById('activeListings').innerHTML = 
+                    '<div class="error">Failed to load tickets.</div>';
+            }
+        }
+
+        // 🛠️ DASHBOARD FUNCTIONS
+        function cancelListing(ticketId) {
+            if (!confirm("Are you sure you want to cancel this listing?")) return;
+            
+            // Implement cancellation logic
+            alert("Ticket listing cancelled (implementation would update JSONBin)");
+        }
+
+        function logout() {
+            localStorage.removeItem('currentUser');
+            sessionStorage.removeItem('currentUser');
+            window.location.href = 'index.html';
+        }
+
+        // 🚀 INITIALIZE
+        document.addEventListener('DOMContentLoaded', function() {
+            // Tab switching
+            document.querySelectorAll('.dashboard-nav a').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    document.querySelectorAll('.dashboard-section').forEach(section => {
+                        section.classList.add('hidden');
+                    });
+                    document.querySelector(link.getAttribute('href')).classList.remove('hidden');
+                    
+                    // Update active nav link
+                    document.querySelectorAll('.dashboard-nav a').forEach(navLink => {
+                        navLink.classList.remove('active');
+                    });
+                    link.classList.add('active');
+                });
+            });
+
+            // Logout button
+            document.getElementById('logoutBtn').addEventListener('click', logout);
+
+            // Load data
+            loadUserData();
+        });
+    </script>
+</body>
+</html>
