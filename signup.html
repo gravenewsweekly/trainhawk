@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrainHawk - Sign Up</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="signup-container">
+        <div class="logo">TrainHawk</div>
+        <h2>Create Your Account</h2>
+        
+        <form id="signupForm" onsubmit="return validateForm()">
+            <div class="form-group">
+                <label for="fullname">Full Name</label>
+                <input type="text" id="fullname" required minlength="3" maxlength="50">
+                <div class="error" id="nameError"></div>
+            </div>
+            
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" required>
+                <div class="error" id="emailError"></div>
+            </div>
+            
+            <div class="form-group">
+                <label for="phone">Phone Number</label>
+                <input type="tel" id="phone" required pattern="[0-9]{10}">
+                <div class="error" id="phoneError"></div>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" required minlength="6">
+                <div class="error" id="passwordError"></div>
+            </div>
+            
+            <div class="form-group">
+                <label for="confirmPassword">Confirm Password</label>
+                <input type="password" id="confirmPassword" required>
+                <div class="error" id="confirmError"></div>
+            </div>
+            
+            <div class="form-group">
+                <input type="checkbox" id="terms" required>
+                <label for="terms">I agree to the Terms of Service</label>
+            </div>
+            
+            <button type="submit" class="btn">Sign Up</button>
+        </form>
+        
+        <div class="login-link">
+            Already have an account? <a href="login.html">Log in</a>
+        </div>
+    </div>
+
+    <script>
+        // Security configuration
+        const API_KEY = '$2a$10$6n8X61LVRh8bI6Grq4IDMuWbHKnBi5z3xmrQ8oxry3k0oUvSTj8ie';
+        const BIN_ID = '67f2dbc28561e97a50f9e0f9';
+        const API_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+        
+        // Security headers
+        const headers = {
+            'Content-Type': 'application/json',
+            'X-Master-Key': API_KEY,
+            'X-Bin-Private': 'true'
+        };
+        
+        // Form validation
+        function validateForm() {
+            resetErrors();
+            let isValid = true;
+            
+            // Name validation
+            const name = document.getElementById('fullname').value.trim();
+            if (name.length < 3) {
+                showError('nameError', 'Name must be at least 3 characters');
+                isValid = false;
+            }
+            
+            // Email validation
+            const email = document.getElementById('email').value.trim();
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                showError('emailError', 'Please enter a valid email');
+                isValid = false;
+            }
+            
+            // Phone validation
+            const phone = document.getElementById('phone').value.trim();
+            if (!/^[0-9]{10}$/.test(phone)) {
+                showError('phoneError', 'Please enter a valid 10-digit phone number');
+                isValid = false;
+            }
+            
+            // Password validation
+            const password = document.getElementById('password').value;
+            if (password.length < 6) {
+                showError('passwordError', 'Password must be at least 6 characters');
+                isValid = false;
+            }
+            
+            // Password match validation
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            if (password !== confirmPassword) {
+                showError('confirmError', 'Passwords do not match');
+                isValid = false;
+            }
+            
+            if (isValid) {
+                createAccount({
+                    fullname: name,
+                    email: email,
+                    phone: phone,
+                    password: password // Stored in plaintext as requested
+                });
+            }
+            
+            return false; // Prevent default form submission
+        }
+        
+        function resetErrors() {
+            const errors = document.querySelectorAll('.error');
+            errors.forEach(error => error.textContent = '');
+        }
+        
+        function showError(id, message) {
+            document.getElementById(id).textContent = message;
+        }
+        
+        // Secure account creation
+        async function createAccount(userData) {
+            try {
+                // Get existing users
+                const response = await fetch(API_URL, { headers });
+                const data = await response.json();
+                let users = data.record.users || [];
+                
+                // Check if email already exists
+                if (users.some(user => user.email === userData.email)) {
+                    showError('emailError', 'Email already registered');
+                    return;
+                }
+                
+                // Check if phone already exists
+                if (users.some(user => user.phone === userData.phone)) {
+                    showError('phoneError', 'Phone number already registered');
+                    return;
+                }
+                
+                // Add new user
+                users.push({
+                    id: Date.now().toString(),
+                    ...userData,
+                    createdAt: new Date().toISOString(),
+                    lastLogin: null,
+                    isVerified: false
+                });
+                
+                // Update JSONBin
+                const updateResponse = await fetch(API_URL, {
+                    method: 'PUT',
+                    headers,
+                    body: JSON.stringify({ users })
+                });
+                
+                if (updateResponse.ok) {
+                    // Store user session in localStorage
+                    localStorage.setItem('currentUser', JSON.stringify({
+                        id: users[users.length - 1].id,
+                        email: userData.email
+                    }));
+                    
+                    // Redirect to homepage
+                    window.location.href = 'index.html';
+                } else {
+                    alert('Failed to create account. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again later.');
+            }
+        }
+        
+        // Prevent form submission on Enter key
+        document.getElementById('signupForm').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+            }
+        });
+    </script>
+</body>
+</html>
