@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrainHawk - Login</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo">TrainHawk</div>
+        <h2>Welcome Back</h2>
+        
+        <form id="loginForm" onsubmit="return validateLogin()">
+            <div class="form-group">
+                <label for="loginEmail">Email</label>
+                <input type="email" id="loginEmail" required>
+                <div class="error" id="emailError"></div>
+            </div>
+            
+            <div class="form-group">
+                <label for="loginPassword">Password</label>
+                <input type="password" id="loginPassword" required>
+                <div class="error" id="passwordError"></div>
+            </div>
+            
+            <div class="form-group remember-me">
+                <input type="checkbox" id="rememberMe">
+                <label for="rememberMe">Remember me</label>
+                <a href="#" class="forgot-password">Forgot password?</a>
+            </div>
+            
+            <button type="submit" class="btn">Log In</button>
+        </form>
+        
+        <div class="signup-link">
+            Don't have an account? <a href="signup.html">Sign up</a>
+        </div>
+    </div>
+
+    <script>
+        // Security configuration (same as signup)
+        const API_KEY = '$2a$10$6n8X61LVRh8bI6Grq4IDMuWbHKnBi5z3xmrQ8oxry3k0oUvSTj8ie';
+        const BIN_ID = '67f2dbc28561e97a50f9e0f9';
+        const API_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+        
+        const headers = {
+            'Content-Type': 'application/json',
+            'X-Master-Key': API_KEY
+        };
+        
+        // Form validation
+        function validateLogin() {
+            resetErrors();
+            let isValid = true;
+            
+            // Email validation
+            const email = document.getElementById('loginEmail').value.trim();
+            if (!email) {
+                showError('emailError', 'Email is required');
+                isValid = false;
+            }
+            
+            // Password validation
+            const password = document.getElementById('loginPassword').value;
+            if (!password) {
+                showError('passwordError', 'Password is required');
+                isValid = false;
+            }
+            
+            if (isValid) {
+                authenticateUser(email, password);
+            }
+            
+            return false; // Prevent default form submission
+        }
+        
+        function resetErrors() {
+            document.getElementById('emailError').textContent = '';
+            document.getElementById('passwordError').textContent = '';
+        }
+        
+        function showError(id, message) {
+            document.getElementById(id).textContent = message;
+        }
+        
+        // User authentication
+        async function authenticateUser(email, password) {
+            try {
+                // Get users from JSONBin
+                const response = await fetch(API_URL, { headers });
+                const data = await response.json();
+                const users = data.record.users || [];
+                
+                // Find user by email (case-sensitive)
+                const user = users.find(u => u.email === email);
+                
+                if (!user) {
+                    showError('emailError', 'Email not found');
+                    return;
+                }
+                
+                // Compare passwords (plaintext as requested)
+                if (user.password !== password) {
+                    showError('passwordError', 'Incorrect password');
+                    return;
+                }
+                
+                // Store user session
+                const sessionData = {
+                    id: user.id,
+                    email: user.email,
+                    fullname: user.fullname,
+                    lastLogin: new Date().toISOString()
+                };
+                
+                if (document.getElementById('rememberMe').checked) {
+                    localStorage.setItem('currentUser', JSON.stringify(sessionData));
+                } else {
+                    sessionStorage.setItem('currentUser', JSON.stringify(sessionData));
+                }
+                
+                // Update last login in database
+                user.lastLogin = new Date().toISOString();
+                await fetch(API_URL, {
+                    method: 'PUT',
+                    headers,
+                    body: JSON.stringify({ users })
+                });
+                
+                // Redirect to homepage
+                window.location.href = 'index.html';
+                
+            } catch (error) {
+                console.error('Login error:', error);
+                alert('An error occurred during login. Please try again.');
+            }
+        }
+        
+        // Check if already logged in
+        window.addEventListener('DOMContentLoaded', () => {
+            const currentUser = localStorage.getItem('currentUser') || sessionStorage.getItem('currentUser');
+            if (currentUser) {
+                window.location.href = 'index.html';
+            }
+        });
+        
+        // Prevent form submission on Enter key
+        document.getElementById('loginForm').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+            }
+        });
+    </script>
+</body>
+</html>
