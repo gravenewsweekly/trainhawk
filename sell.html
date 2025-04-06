@@ -3,168 +3,145 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sell Your Train Ticket | TrainHawk</title>
+    <title>Sell Your Ticket | TrainHawk</title>
     <link rel="stylesheet" href="styles.css">
+    <!-- Razorpay SDK -->
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 </head>
 <body>
-    <!-- Security Initialization -->
+    <!-- 🔒 SECURITY LAYER 1: IMMEDIATE PROTECTION -->
     <script>
-        // Immediate security checks
+        // Block unauthorized access
         (function() {
-            // Block unauthorized access
             const user = localStorage.getItem('currentUser') || sessionStorage.getItem('currentUser');
-            if (!user) {
-                window.location.href = 'login.html?redirect=sell';
-            }
+            if (!user) window.location.href = 'login.html?redirect=sell';
             
-            // Prevent XSS attempts in URL
-            if (window.location.search.indexOf('<script>') > -1 || 
-                decodeURIComponent(window.location.search).indexOf('javascript:') > -1) {
-                window.location.href = '/security-error.html';
-            }
-            
-            // Clear sensitive data if tampering detected
+            // Validate session integrity
             if (localStorage.getItem('securityCheck') !== 'valid') {
                 localStorage.clear();
                 sessionStorage.clear();
-                window.location.href = 'login.html';
+                window.location.href = 'security-error.html';
             }
+            
+            // Prevent iframe embedding
+            if (window !== window.top) window.top.location = window.location;
         })();
     </script>
 
-    <!-- Navigation Bar -->
+    <!-- NAVIGATION -->
     <nav class="navbar">
         <div class="container">
             <div class="logo">TrainHawk</div>
             <div class="nav-links">
                 <a href="index.html">Home</a>
-                <a href="search.html">Find Tickets</a>
-                <a href="sell.html" class="active">Sell Tickets</a>
+                <a href="search.html">Search</a>
+                <a href="sell.html" class="active">Sell</a>
                 <a href="dashboard.html">Dashboard</a>
-                <div id="authLinks"></div>
+                <a href="login.html" id="logoutBtn">Logout</a>
             </div>
         </div>
     </nav>
 
-    <!-- Main Content -->
-    <main class="container sell-container">
+    <!-- MAIN CONTENT -->
+    <main class="container">
         <h1>Sell Your Train Ticket</h1>
-        <p class="subtitle">Fill in your ticket details below. All fields are required.</p>
         
-        <form id="ticketForm" onsubmit="return validateTicketForm()">
-            <!-- Ticket Details -->
+        <!-- TICKET FORM -->
+        <form id="ticketForm" class="ticket-form">
             <div class="form-section">
-                <h2>Ticket Information</h2>
-                
+                <h2>Ticket Details</h2>
                 <div class="form-group">
-                    <label for="pnrNumber">PNR Number</label>
-                    <input type="text" id="pnrNumber" pattern="[A-Za-z0-9]{10}" title="10-digit alphanumeric PNR" required>
+                    <label for="pnrNumber">PNR Number*</label>
+                    <input type="text" id="pnrNumber" pattern="[A-Za-z0-9]{10}" required>
                     <div class="error" id="pnrError"></div>
                 </div>
                 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="fromStation">From Station</label>
-                        <input type="text" id="fromStation" required minlength="3">
+                        <label for="fromStation">From Station*</label>
+                        <input type="text" id="fromStation" required>
                     </div>
-                    
                     <div class="form-group">
-                        <label for="toStation">To Station</label>
-                        <input type="text" id="toStation" required minlength="3">
+                        <label for="toStation">To Station*</label>
+                        <input type="text" id="toStation" required>
                     </div>
                 </div>
                 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="trainNumber">Train Number</label>
-                        <input type="text" id="trainNumber" pattern="[0-9]{5}" title="5-digit train number" required>
+                        <label for="trainNumber">Train Number*</label>
+                        <input type="text" id="trainNumber" required>
                     </div>
-                    
                     <div class="form-group">
-                        <label for="trainName">Train Name</label>
+                        <label for="trainName">Train Name*</label>
                         <input type="text" id="trainName" required>
                     </div>
                 </div>
                 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="departureDate">Departure Date</label>
+                        <label for="departureDate">Departure Date*</label>
                         <input type="date" id="departureDate" required>
                     </div>
-                    
                     <div class="form-group">
-                        <label for="departureTime">Departure Time</label>
+                        <label for="departureTime">Departure Time*</label>
                         <input type="time" id="departureTime" required>
                     </div>
                 </div>
             </div>
             
-            <!-- Pricing -->
             <div class="form-section">
-                <h2>Pricing Details</h2>
-                
+                <h2>Pricing</h2>
                 <div class="form-group">
-                    <label for="originalPrice">Original Price (₹)</label>
-                    <input type="number" id="originalPrice" min="10" step="10" required>
+                    <label for="originalPrice">Original Price (₹)*</label>
+                    <input type="number" id="originalPrice" min="10" required>
                 </div>
-                
                 <div class="form-group">
-                    <label for="sellingPrice">Your Asking Price (₹)</label>
-                    <input type="number" id="sellingPrice" min="10" step="10" required>
+                    <label for="sellingPrice">Your Price (₹)*</label>
+                    <input type="number" id="sellingPrice" min="10" required>
                     <div class="hint">Max 10% above original price allowed</div>
                     <div class="error" id="priceError"></div>
                 </div>
-                
-                <div class="form-group">
-                    <label for="priceDrop">Auto Price Drop</label>
-                    <select id="priceDrop">
-                        <option value="5">5% every 6 hours</option>
-                        <option value="10" selected>10% every 12 hours</option>
-                        <option value="15">15% every 24 hours</option>
-                        <option value="0">No auto drop</option>
-                    </select>
-                </div>
             </div>
             
-            <!-- Contact Info -->
             <div class="form-section">
-                <h2>Contact Information</h2>
-                <div class="form-group">
-                    <label for="contactNumber">Mobile Number</label>
-                    <input type="tel" id="contactNumber" pattern="[0-9]{10}" title="10-digit mobile number" required>
-                    <div class="hint">For buyer contact (visible after purchase)</div>
+                <h2>Boost Your Listing</h2>
+                <div class="boost-options">
+                    <div class="boost-card" data-amount="50">
+                        <h3>Standard Boost</h3>
+                        <p>2x more visibility</p>
+                        <div class="price">₹50</div>
+                        <button type="button" class="btn secondary select-boost">Select</button>
+                    </div>
+                    <div class="boost-card" data-amount="100">
+                        <h3>Premium Boost</h3>
+                        <p>5x more visibility + Urgent tag</p>
+                        <div class="price">₹100</div>
+                        <button type="button" class="btn secondary select-boost">Select</button>
+                    </div>
                 </div>
+                <input type="hidden" id="selectedBoost" value="0">
             </div>
             
-            <!-- Terms -->
-            <div class="form-group terms">
-                <input type="checkbox" id="agreeTerms" required>
-                <label for="agreeTerms">I confirm this ticket is genuine and I agree to the <a href="terms.html" target="_blank">Terms of Service</a></label>
-            </div>
-            
-            <!-- Submit -->
             <div class="form-actions">
-                <button type="submit" class="btn primary">List Ticket for Sale</button>
-                <button type="button" class="btn secondary" onclick="clearForm()">Clear Form</button>
+                <button type="submit" class="btn primary">List Ticket</button>
             </div>
         </form>
     </main>
 
-    <!-- Footer -->
+    <!-- FOOTER -->
     <footer class="footer">
         <div class="container">
-            <div class="copyright">
-                &copy; 2025 TrainHawk Technologies. All rights reserved.
-            </div>
+            <p>&copy; 2025 TrainHawk | <a href="privacy.html">Privacy Policy</a></p>
         </div>
     </footer>
 
+    <!-- 🛡️ SECURITY + BUSINESS LOGIC -->
     <script>
-        // JSONBin Configuration
+        // CONFIGURATION
         const API_KEY = '$2a$10$6n8X61LVRh8bI6Grq4IDMuWbHKnBi5z3xmrQ8oxry3k0oUvSTj8ie';
         const BIN_ID = '67f2dbc28561e97a50f9e0f9';
-        const TICKETS_BIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
-        const USERS_BIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+        const API_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
         
         const headers = {
             'Content-Type': 'application/json',
@@ -172,100 +149,129 @@
             'X-Bin-Versioning': 'false'
         };
 
-        // Security Functions
-        function sanitizeInput(input) {
+        // 🔐 SECURITY FUNCTIONS
+        const sanitizeInput = (input) => {
             if (!input) return '';
-            return input.toString()
-                .replace(/</g, '&lt;').replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;').replace(/'/g, '&#39;')
-                .replace(/\//g, '&#x2F;');
+            const div = document.createElement('div');
+            div.textContent = input;
+            return div.innerHTML
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        };
+
+        const validatePNR = (pnr) => /^[A-Za-z0-9]{10}$/.test(pnr);
+
+        // 💳 RAZORPAY INTEGRATION
+        function processBoostPayment(amount) {
+            return new Promise((resolve) => {
+                const options = {
+                    key: 'rzp_test_1DP5mmOlF5G5ag', // Test key - replace with yours
+                    amount: amount * 100,
+                    currency: 'INR',
+                    name: 'TrainHawk',
+                    description: 'Listing Boost',
+                    handler: function(response) {
+                        resolve({ success: true, paymentId: response.razorpay_payment_id });
+                    },
+                    theme: {
+                        color: '#3399cc'
+                    }
+                };
+                
+                const rzp = new Razorpay(options);
+                rzp.on('payment.failed', () => resolve({ success: false }));
+                rzp.open();
+            });
         }
 
-        function validatePhone(phone) {
-            return /^[0-9]{10}$/.test(phone);
-        }
-
-        function validatePNR(pnr) {
-            return /^[A-Za-z0-9]{10}$/.test(pnr);
-        }
-
-        // Form Validation
-        function validateTicketForm() {
-            resetErrors();
-            let isValid = true;
-            
-            // PNR Validation
-            const pnr = document.getElementById('pnrNumber').value.trim();
-            if (!validatePNR(pnr)) {
-                showError('pnrError', 'Please enter a valid 10-digit PNR');
-                isValid = false;
-            }
-            
-            // Price Validation
-            const originalPrice = parseFloat(document.getElementById('originalPrice').value);
-            const sellingPrice = parseFloat(document.getElementById('sellingPrice').value);
-            
-            if (sellingPrice > originalPrice * 1.1) {
-                showError('priceError', 'Selling price cannot exceed 10% above original');
-                isValid = false;
-            }
-            
-            if (sellingPrice < originalPrice * 0.5) {
-                showError('priceError', 'Selling price cannot be less than 50% of original');
-                isValid = false;
-            }
-            
-            // Contact Validation
-            const contact = document.getElementById('contactNumber').value.trim();
-            if (!validatePhone(contact)) {
-                showError('contactError', 'Please enter a valid 10-digit number');
-                isValid = false;
-            }
-            
-            if (isValid) {
-                submitTicketForm();
-            }
-            
-            return false;
-        }
-        
-        function resetErrors() {
-            const errors = document.querySelectorAll('.error');
-            errors.forEach(error => error.textContent = '');
-        }
-        
-        function showError(id, message) {
-            const element = document.getElementById(id);
-            if (element) {
-                element.textContent = message;
-            }
-        }
-        
-        // Form Submission
-        async function submitTicketForm() {
+        // 🎫 TICKET MANAGEMENT
+        async function listTicket(ticketData) {
             try {
-                // Get current user
-                const user = JSON.parse(localStorage.getItem('currentUser') || sessionStorage.getItem('currentUser'));
-                if (!user || !user.id) {
-                    throw new Error('User session invalid');
+                // 1. Process boost payment if selected
+                if (ticketData.boostAmount > 0) {
+                    const paymentResult = await processBoostPayment(ticketData.boostAmount);
+                    if (!paymentResult.success) throw new Error('Boost payment failed');
                 }
                 
-                // Get existing tickets
-                const ticketsResponse = await fetch(TICKETS_BIN_URL, { headers });
-                const ticketsData = await ticketsResponse.json();
-                const allTickets = ticketsData.record?.tickets || [];
+                // 2. Save ticket to JSONBin
+                const res = await fetch(API_URL, { headers });
+                const { tickets = [] } = await res.json();
                 
-                // Check for duplicate PNR
+                const newTicket = {
+                    id: 'T' + Date.now(),
+                    ...ticketData,
+                    status: 'active',
+                    createdAt: new Date().toISOString(),
+                    views: 0
+                };
+                
+                await fetch(API_URL, {
+                    method: 'PUT',
+                    headers,
+                    body: JSON.stringify({ tickets: [...tickets, newTicket] })
+                });
+                
+                return { success: true };
+            } catch (error) {
+                console.error('Listing error:', error);
+                return { success: false, error: error.message };
+            }
+        }
+
+        // 🖥️ UI FUNCTIONS
+        document.addEventListener('DOMContentLoaded', () => {
+            // Set minimum date to today
+            document.getElementById('departureDate').min = new Date().toISOString().split('T')[0];
+            
+            // Boost selection
+            document.querySelectorAll('.select-boost').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.boost-card').forEach(card => {
+                        card.classList.remove('selected');
+                    });
+                    
+                    this.closest('.boost-card').classList.add('selected');
+                    document.getElementById('selectedBoost').value = 
+                        this.closest('.boost-card').dataset.amount;
+                });
+            });
+            
+            // Price validation
+            document.getElementById('originalPrice').addEventListener('change', function() {
+                const original = parseFloat(this.value);
+                const selling = document.getElementById('sellingPrice');
+                if (original && !selling.value) {
+                    selling.value = Math.ceil(original * 1.05); // Default 5% markup
+                }
+            });
+            
+            // Form submission
+            document.getElementById('ticketForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                // Reset errors
+                document.querySelectorAll('.error').forEach(el => el.textContent = '');
+                
+                // Validate PNR
                 const pnr = document.getElementById('pnrNumber').value.trim();
-                if (allTickets.some(t => t.pnr === pnr)) {
-                    showError('pnrError', 'This PNR is already listed');
+                if (!validatePNR(pnr)) {
+                    document.getElementById('pnrError').textContent = 'Invalid PNR format';
                     return;
                 }
                 
-                // Create new ticket
-                const newTicket = {
-                    id: 'T' + Date.now().toString(),
-                    pnr: sanitizeInput(pnr),
+                // Validate pricing
+                const originalPrice = parseFloat(document.getElementById('originalPrice').value);
+                const sellingPrice = parseFloat(document.getElementById('sellingPrice').value);
+                
+                if (sellingPrice > originalPrice * 1.1) {
+                    document.getElementById('priceError').textContent = 
+                        'Selling price cannot exceed 10% above original';
+                    return;
+                }
+                
+                // Prepare ticket data
+                const ticketData = {
+                    pnr,
                     fromStation: sanitizeInput(document.getElementById('fromStation').value.trim()),
                     toStation: sanitizeInput(document.getElementById('toStation').value.trim()),
                     trainNumber: sanitizeInput(document.getElementById('trainNumber').value.trim()),
@@ -274,83 +280,35 @@
                         document.getElementById('departureDate').value + 'T' + 
                         document.getElementById('departureTime').value
                     ).toISOString(),
-                    originalPrice: parseFloat(document.getElementById('originalPrice').value),
-                    sellingPrice: parseFloat(document.getElementById('sellingPrice').value),
-                    priceDropRate: parseInt(document.getElementById('priceDrop').value),
-                    contactNumber: document.getElementById('contactNumber').value.trim(),
-                    sellerId: user.id,
-                    createdAt: new Date().toISOString(),
-                    status: 'active',
-                    views: 0
+                    originalPrice,
+                    sellingPrice,
+                    boostAmount: parseInt(document.getElementById('selectedBoost').value),
+                    sellerId: JSON.parse(localStorage.getItem('currentUser')).id
                 };
                 
-                // Update JSONBin
-                const updatedTickets = [...allTickets, newTicket];
-                const updateResponse = await fetch(TICKETS_BIN_URL, {
-                    method: 'PUT',
-                    headers,
-                    body: JSON.stringify({ tickets: updatedTickets })
-                });
+                // Submit
+                const submitBtn = e.target.querySelector('button[type="submit"]');
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Processing...';
                 
-                if (updateResponse.ok) {
-                    // Success - redirect to dashboard
-                    window.location.href = 'dashboard.html?listing_success=true';
+                const result = await listTicket(ticketData);
+                
+                if (result.success) {
+                    alert('Ticket listed successfully!');
+                    window.location.href = 'dashboard.html';
                 } else {
-                    throw new Error('Failed to update ticket database');
-                }
-            } catch (error) {
-                console.error('Ticket submission error:', error);
-                alert('An error occurred while listing your ticket. Please try again.');
-            }
-        }
-        
-        // Clear form
-        function clearForm() {
-            document.getElementById('ticketForm').reset();
-            resetErrors();
-        }
-        
-        // Initialize page
-        document.addEventListener('DOMContentLoaded', function() {
-            // Set minimum date to today
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('departureDate').min = today;
-            
-            // Auto-calculate selling price
-            document.getElementById('originalPrice').addEventListener('change', function() {
-                const original = parseFloat(this.value);
-                if (original && !document.getElementById('sellingPrice').value) {
-                    document.getElementById('sellingPrice').value = Math.ceil(original * 1.05);
+                    alert(`Error: ${result.error || 'Failed to list ticket'}`);
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'List Ticket';
                 }
             });
             
-            // Check auth state for nav
-            const user = localStorage.getItem('currentUser') || sessionStorage.getItem('currentUser');
-            const authLinks = document.getElementById('authLinks');
-            
-            if (user) {
-                try {
-                    const userData = JSON.parse(user);
-                    authLinks.innerHTML = `
-                        <a href="dashboard.html" class="user-profile">${sanitizeInput(userData.fullname || 'My Account')}</a>
-                        <a href="#" onclick="logout()">Logout</a>
-                    `;
-                } catch (e) {
-                    localStorage.removeItem('currentUser');
-                    sessionStorage.removeItem('currentUser');
-                    authLinks.innerHTML = `
-                        <a href="login.html">Login</a>
-                        <a href="signup.html" class="btn small">Sign Up</a>
-                    `;
-                }
-            }
+            // Logout
+            document.getElementById('logoutBtn').addEventListener('click', () => {
+                localStorage.removeItem('currentUser');
+                window.location.href = 'index.html';
+            });
         });
-        
-        function logout() {
-            localStorage.removeItem('currentUser');
-            sessionStorage.removeItem('currentUser');
-            window.location.href = 'index.html';
-        }
     </script>
 </body>
 </html>
