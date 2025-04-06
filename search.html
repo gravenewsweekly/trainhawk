@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Find Train Tickets | TrainHawk</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Security Initialization -->
+    <script>
+        // Immediate security checks
+        (function() {
+            // Block XSS attempts in URL parameters
+            const sanitizeParams = () => {
+                const params = new URLSearchParams(window.location.search);
+                for (const [key, value] of params) {
+                    if (/<script|javascript:|onerror=/i.test(decodeURIComponent(value))) {
+                        window.location.href = '/security-error.html';
+                        return;
+                    }
+                }
+            };
+            sanitizeParams();
+            
+            // Prevent iframe embedding
+            if (window !== window.top) {
+                window.top.location = window.location;
+            }
+            
+            // Validate localStorage integrity
+            if (localStorage.getItem('securityCheck') !== 'valid') {
+                localStorage.clear();
+                sessionStorage.clear();
+                localStorage.setItem('securityCheck', 'valid');
+            }
+        })();
+    </script>
+
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="logo">TrainHawk</div>
+            <div class="nav-links">
+                <a href="index.html">Home</a>
+                <a href="search.html" class="active">Find Tickets</a>
+                <a href="sell.html">Sell Tickets</a>
+                <a href="dashboard.html">Dashboard</a>
+                <div id="authLinks"></div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Search Section -->
+    <main class="container search-container">
+        <h1>Find Available Tickets</h1>
+        
+        <form id="searchForm" onsubmit="return executeSearch()">
+            <div class="search-filters">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="fromStation">From</label>
+                        <input type="text" id="fromStation" placeholder="Delhi" minlength="3">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="toStation">To</label>
+                        <input type="text" id="toStation" placeholder="Mumbai" minlength="3">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="travelDate">Date</label>
+                        <input type="date" id="travelDate" min="">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="maxPrice">Max Price (₹)</label>
+                        <input type="number" id="maxPrice" min="100" step="100" placeholder="No limit">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="sortBy">Sort By</label>
+                        <select id="sortBy">
+                            <option value="price_asc">Price: Low to High</option>
+                            <option value="price_desc">Price: High to Low</option>
+                            <option value="departure_asc">Departure: Earliest</option>
+                            <option value="departure_desc">Departure: Latest</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>&nbsp;</label>
+                        <button type="submit" class="btn primary">Search Tickets</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+        
+        <!-- Search Results -->
+        <div class="search-results">
+            <div class="results-header">
+                <h2 id="resultsTitle">Available Tickets</h2>
+                <div class="results-count" id="resultsCount">0 tickets found</div>
+            </div>
+            
+            <div class="results-grid" id="ticketResults">
+                <!-- Tickets will be loaded here -->
+                <div class="empty-state">
+                    <p>Enter your search criteria to find available tickets</p>
+                </div>
+            </div>
+            
+            <div class="pagination" id="pagination">
+                <!-- Pagination will be added here -->
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="copyright">
+                &copy; 2025 TrainHawk Technologies. All rights reserved.
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // JSONBin Configuration
+        const API_KEY = '$2a$10$6n8X61LVRh8bI6Grq4IDMuWbHKnBi5z3xmrQ8oxry3k0oUvSTj8ie';
+        const BIN_ID = '67f2dbc28561e97a50f9e0f9';
+        const API_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+        
+        const headers = {
+            'Content-Type': 'application/json',
+            'X-Master-Key': API_KEY,
+            'X-Bin-Meta': 'false'
+        };
+
+        // Security Functions
+        function sanitizeInput(input) {
+            if (!input) return '';
+            return input.toString()
+                .replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+                .replace(/\//g, '&#x2F;');
+        }
+
+        function escapeRegex(string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        // Search Execution
+        async function executeSearch() {
+            try {
+                // Show loading state
+                document.getElementById('ticketResults').innerHTML = `
+                    <div class="loading-state">
+                        <div class="spinner"></div>
+                        <p>Searching for tickets...</p>
+                    </div>
+                `;
+                
+                // Get search parameters
+                const fromStation = document.getElementById('fromStation').value.trim().toLowerCase();
+                const toStation = document.getElementById('toStation').value.trim().toLowerCase();
+                const travelDate = document.getElementById('travelDate').value;
+                const maxPrice = document.getElementById('maxPrice').value;
+                const sortBy = document.getElementById('sortBy').value;
+                
+                // Fetch tickets
+                const response = await fetch(API_URL, { headers });
+                const data = await response.json();
+                let tickets = data.tickets || [];
+                
+                // Apply filters
+                let filteredTickets = tickets.filter(ticket => {
+                    // Filter by stations if provided
+                    if (fromStation && !ticket.fromStation.toLowerCase().includes(fromStation)) {
+                        return false;
+                    }
+                    if (toStation && !ticket.toStation.toLowerCase().includes(toStation)) {
+                        return false;
+                    }
+                    
+                    // Filter by date if provided
+                    if (travelDate) {
+                        const ticketDate = new Date(ticket.departure).toISOString().split('T')[0];
+                        if (ticketDate !== travelDate) {
+                            return false;
+                        }
+                    }
+                    
+                    // Filter by price if provided
+                    if (maxPrice && ticket.sellingPrice > parseFloat(maxPrice)) {
+                        return false;
+                    }
+                    
+                    // Only show active tickets
+                    return ticket.status === 'active';
+                });
+                
+                // Apply sorting
+                filteredTickets.sort((a, b) => {
+                    switch (sortBy) {
+                        case 'price_asc':
+                            return a.sellingPrice - b.sellingPrice;
+                        case 'price_desc':
+                            return b.sellingPrice - a.sellingPrice;
+                        case 'departure_asc':
+                            return new Date(a.departure) - new Date(b.departure);
+                        case 'departure_desc':
+                            return new Date(b.departure) - new Date(a.departure);
+                        default:
+                            return 0;
+                    }
+                });
+                
+                // Display results
+                displayResults(filteredTickets);
+                
+            } catch (error) {
+                console.error('Search error:', error);
+                document.getElementById('ticketResults').innerHTML = `
+                    <div class="error-state">
+                        <p>Failed to load tickets. Please try again later.</p>
+                    </div>
+                `;
+            }
+            
+            return false;
+        }
+        
+        // Display Results
+        function displayResults(tickets) {
+            const resultsContainer = document.getElementById('ticketResults');
+            const countContainer = document.getElementById('resultsCount');
+            
+            countContainer.textContent = `${tickets.length} tickets found`;
+            
+            if (tickets.length === 0) {
+                resultsContainer.innerHTML = `
+                    <div class="empty-state">
+                        <p>No tickets matching your criteria found</p>
+                        <button onclick="clearSearch()" class="btn secondary">Clear Search</button>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '';
+            tickets.forEach(ticket => {
+                const departureDate = new Date(ticket.departure);
+                const formattedDate = departureDate.toLocaleDateString('en-IN', {
+                    weekday: 'short',
+                    day: 'numeric',
+                    month: 'short'
+                });
+                const formattedTime = departureDate.toLocaleTimeString('en-IN', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                
+                // Calculate price drop if applicable
+                let priceInfo = `₹${ticket.sellingPrice}`;
+                if (ticket.priceDropRate > 0) {
+                    const hoursSinceListing = (new Date() - new Date(ticket.createdAt)) / 3600000;
+                    const priceDrops = Math.floor(hoursSinceListing / (ticket.priceDropRate === 5 ? 6 : 
+                                                       ticket.priceDropRate === 10 ? 12 : 24));
+                    if (priceDrops > 0) {
+                        const droppedPrice = ticket.sellingPrice * 
+                                          Math.pow(1 - ticket.priceDropRate/100, priceDrops);
+                        priceInfo = `₹${Math.ceil(droppedPrice)} <span class="original-price">₹${ticket.sellingPrice}</span>`;
+                    }
+                }
+                
+                html += `
+                <div class="ticket-card">
+                    <div class="ticket-route">
+                        <h3>${sanitizeInput(ticket.fromStation)} → ${sanitizeInput(ticket.toStation)}</h3>
+                        <div class="train-info">
+                            <span>${sanitizeInput(ticket.trainNumber)}</span>
+                            <span>${sanitizeInput(ticket.trainName)}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="ticket-departure">
+                        <div class="date">${formattedDate}</div>
+                        <div class="time">${formattedTime}</div>
+                    </div>
+                    
+                    <div class="ticket-price">
+                        <div class="amount">${priceInfo}</div>
+                        <div class="per-person">per person</div>
+                    </div>
+                    
+                    <div class="ticket-actions">
+                        <a href="listing.html?id=${ticket.id}" class="btn primary">View Details</a>
+                    </div>
+                </div>
+                `;
+            });
+            
+            resultsContainer.innerHTML = html;
+        }
+        
+        // Clear search
+        function clearSearch() {
+            document.getElementById('searchForm').reset();
+            document.getElementById('ticketResults').innerHTML = `
+                <div class="empty-state">
+                    <p>Enter your search criteria to find available tickets</p>
+                </div>
+            `;
+            document.getElementById('resultsCount').textContent = '0 tickets found';
+        }
+        
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set minimum date to today
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('travelDate').min = today;
+            
+            // Check for URL parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('from')) {
+                document.getElementById('fromStation').value = sanitizeInput(urlParams.get('from'));
+            }
+            if (urlParams.has('to')) {
+                document.getElementById('toStation').value = sanitizeInput(urlParams.get('to'));
+            }
+            if (urlParams.has('date')) {
+                document.getElementById('travelDate').value = urlParams.get('date');
+            }
+            
+            // If parameters exist, execute search
+            if (urlParams.has('from') || urlParams.has('to') || urlParams.has('date')) {
+                executeSearch();
+            }
+            
+            // Set up auth links
+            const user = localStorage.getItem('currentUser') || sessionStorage.getItem('currentUser');
+            const authLinks = document.getElementById('authLinks');
+            
+            if (user) {
+                try {
+                    const userData = JSON.parse(user);
+                    authLinks.innerHTML = `
+                        <a href="dashboard.html" class="user-profile">${sanitizeInput(userData.fullname || 'My Account')}</a>
+                        <a href="#" onclick="logout()">Logout</a>
+                    `;
+                } catch (e) {
+                    localStorage.removeItem('currentUser');
+                    sessionStorage.removeItem('currentUser');
+                    authLinks.innerHTML = `
+                        <a href="login.html">Login</a>
+                        <a href="signup.html" class="btn small">Sign Up</a>
+                    `;
+                }
+            } else {
+                authLinks.innerHTML = `
+                    <a href="login.html">Login</a>
+                    <a href="signup.html" class="btn small">Sign Up</a>
+                `;
+            }
+        });
+        
+        function logout() {
+            localStorage.removeItem('currentUser');
+            sessionStorage.removeItem('currentUser');
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>
