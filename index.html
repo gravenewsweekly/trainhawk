@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="TrainHawk - Buy and sell last-minute train tickets securely">
+    <title>TrainHawk | Last-Minute Train Ticket Exchange</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Security Auto-Moderation Script -->
+    <script>
+        // Malicious activity detection
+        (function() {
+            // Block common attack vectors
+            if (window.location.href.indexOf('<script>') > -1 || 
+                window.location.href.indexOf('javascript:') > -1 ||
+                window.location.href.indexOf('onerror=') > -1) {
+                window.location.href = '/security-error.html';
+            }
+            
+            // Prevent iframe embedding (clickjacking protection)
+            if (window !== window.top) {
+                window.top.location = window.location;
+            }
+            
+            // Clear sensitive data if tampering detected
+            if (localStorage.getItem('securityCheck') !== 'valid') {
+                localStorage.clear();
+                sessionStorage.clear();
+                localStorage.setItem('securityCheck', 'valid');
+            }
+        })();
+    </script>
+
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="logo">TrainHawk</div>
+            <div class="nav-links">
+                <a href="index.html" class="active">Home</a>
+                <a href="search.html">Find Tickets</a>
+                <a href="sell.html">Sell Tickets</a>
+                <a href="dashboard.html">Dashboard</a>
+                <a href="help.html">Help</a>
+                <div id="authLinks">
+                    <!-- Dynamically populated based on login state -->
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="hero">
+        <div class="container">
+            <h1>Never Miss Your Train Again</h1>
+            <p>Buy and sell last-minute train tickets with complete security</p>
+            <div class="cta-buttons">
+                <a href="search.html" class="btn primary">Find Tickets</a>
+                <a href="sell.html" class="btn secondary">Sell Tickets</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- How It Works -->
+    <section class="how-it-works">
+        <div class="container">
+            <h2>How TrainHawk Works</h2>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <h3>Find or List</h3>
+                    <p>Search for tickets or list your unused ones</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <h3>Secure Transaction</h3>
+                    <p>Protected payments with escrow service</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <h3>Travel Stress-Free</h3>
+                    <p>Get confirmed tickets without last-minute hassle</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Live Listings Preview -->
+    <section class="live-listings">
+        <div class="container">
+            <h2>Available Now</h2>
+            <div id="ticketListings">
+                <!-- Dynamically populated -->
+                <div class="loading">Loading available tickets...</div>
+            </div>
+            <a href="search.html" class="btn primary">View All Tickets</a>
+        </div>
+    </section>
+
+    <!-- Security Badges -->
+    <section class="security">
+        <div class="container">
+            <h2>Your Security is Our Priority</h2>
+            <div class="badges">
+                <div class="badge">
+                    <span>🔒</span>
+                    <p>PNR Verification</p>
+                </div>
+                <div class="badge">
+                    <span>💳</span>
+                    <p>Escrow Payments</p>
+                </div>
+                <div class="badge">
+                    <span>🛡️</span>
+                    <p>Anti-Fraud System</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-links">
+                <div class="footer-column">
+                    <h3>Company</h3>
+                    <a href="about.html">About Us</a>
+                    <a href="careers.html">Careers</a>
+                    <a href="press.html">Press</a>
+                </div>
+                <div class="footer-column">
+                    <h3>Legal</h3>
+                    <a href="terms.html">Terms of Service</a>
+                    <a href="privacy.html">Privacy Policy</a>
+                    <a href="refund.html">Refund Policy</a>
+                </div>
+                <div class="footer-column">
+                    <h3>Support</h3>
+                    <a href="help.html">Help Center</a>
+                    <a href="contact.html">Contact Us</a>
+                    <a href="safety.html">Safety Tips</a>
+                </div>
+            </div>
+            <div class="copyright">
+                &copy; 2025 TrainHawk Technologies. All rights reserved.
+                <div class="legal-links">
+                    <a href="terms.html">Terms</a> | 
+                    <a href="privacy.html">Privacy</a> | 
+                    <a href="cookies.html">Cookies</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // JSONBin Configuration
+        const API_KEY = '$2a$10$6n8X61LVRh8bI6Grq4IDMuWbHKnBi5z3xmrQ8oxry3k0oUvSTj8ie';
+        const BIN_ID = '67f2dbc28561e97a50f9e0f9';
+        const API_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+        
+        const headers = {
+            'Content-Type': 'application/json',
+            'X-Master-Key': API_KEY,
+            'X-Bin-Meta': 'false'
+        };
+
+        // Auto-Moderation Features
+        function sanitizeInput(input) {
+            return input.replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        // Check authentication state
+        function checkAuthState() {
+            const currentUser = localStorage.getItem('currentUser') || sessionStorage.getItem('currentUser');
+            const authLinks = document.getElementById('authLinks');
+            
+            if (currentUser) {
+                try {
+                    const user = JSON.parse(currentUser);
+                    authLinks.innerHTML = `
+                        <a href="dashboard.html" class="user-profile">${sanitizeInput(user.fullname || 'My Account')}</a>
+                        <a href="login.html" onclick="logout()">Logout</a>
+                    `;
+                } catch (e) {
+                    // Clear corrupted data
+                    localStorage.removeItem('currentUser');
+                    sessionStorage.removeItem('currentUser');
+                    authLinks.innerHTML = `
+                        <a href="login.html">Login</a>
+                        <a href="signup.html" class="btn small">Sign Up</a>
+                    `;
+                }
+            } else {
+                authLinks.innerHTML = `
+                    <a href="login.html">Login</a>
+                    <a href="signup.html" class="btn small">Sign Up</a>
+                `;
+            }
+        }
+
+        // Logout function
+        function logout() {
+            localStorage.removeItem('currentUser');
+            sessionStorage.removeItem('currentUser');
+            window.location.href = 'index.html';
+        }
+
+        // Load featured tickets
+        async function loadFeaturedTickets() {
+            try {
+                const response = await fetch(API_URL, { headers });
+                const data = await response.json();
+                const tickets = data.tickets || [];
+                
+                const listingsContainer = document.getElementById('ticketListings');
+                if (tickets.length > 0) {
+                    let html = '';
+                    tickets.slice(0, 3).forEach(ticket => {
+                        html += `
+                        <div class="ticket-card">
+                            <h3>${sanitizeInput(ticket.from)} → ${sanitizeInput(ticket.to)}</h3>
+                            <p>${sanitizeInput(ticket.trainName)}</p>
+                            <div class="ticket-details">
+                                <span>${new Date(ticket.departure).toLocaleString()}</span>
+                                <span class="price">₹${ticket.price}</span>
+                            </div>
+                            <a href="listing.html?id=${ticket.id}" class="btn small">View Ticket</a>
+                        </div>
+                        `;
+                    });
+                    listingsContainer.innerHTML = html;
+                } else {
+                    listingsContainer.innerHTML = '<div class="no-results">No tickets available at the moment</div>';
+                }
+            } catch (error) {
+                console.error('Error loading tickets:', error);
+                document.getElementById('ticketListings').innerHTML = 
+                    '<div class="error">Unable to load tickets. Please try again later.</div>';
+            }
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            checkAuthState();
+            loadFeaturedTickets();
+            
+            // Security check for localStorage tampering
+            if (!localStorage.getItem('securityCheck')) {
+                localStorage.setItem('securityCheck', 'valid');
+            }
+        });
+    </script>
+</body>
+</html>
