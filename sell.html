@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sell Your Train Ticket | TrainHawk</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Security Initialization -->
+    <script>
+        // Immediate security checks
+        (function() {
+            // Block unauthorized access
+            const user = localStorage.getItem('currentUser') || sessionStorage.getItem('currentUser');
+            if (!user) {
+                window.location.href = 'login.html?redirect=sell';
+            }
+            
+            // Prevent XSS attempts in URL
+            if (window.location.search.indexOf('<script>') > -1 || 
+                decodeURIComponent(window.location.search).indexOf('javascript:') > -1) {
+                window.location.href = '/security-error.html';
+            }
+            
+            // Clear sensitive data if tampering detected
+            if (localStorage.getItem('securityCheck') !== 'valid') {
+                localStorage.clear();
+                sessionStorage.clear();
+                window.location.href = 'login.html';
+            }
+        })();
+    </script>
+
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="logo">TrainHawk</div>
+            <div class="nav-links">
+                <a href="index.html">Home</a>
+                <a href="search.html">Find Tickets</a>
+                <a href="sell.html" class="active">Sell Tickets</a>
+                <a href="dashboard.html">Dashboard</a>
+                <div id="authLinks"></div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container sell-container">
+        <h1>Sell Your Train Ticket</h1>
+        <p class="subtitle">Fill in your ticket details below. All fields are required.</p>
+        
+        <form id="ticketForm" onsubmit="return validateTicketForm()">
+            <!-- Ticket Details -->
+            <div class="form-section">
+                <h2>Ticket Information</h2>
+                
+                <div class="form-group">
+                    <label for="pnrNumber">PNR Number</label>
+                    <input type="text" id="pnrNumber" pattern="[A-Za-z0-9]{10}" title="10-digit alphanumeric PNR" required>
+                    <div class="error" id="pnrError"></div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="fromStation">From Station</label>
+                        <input type="text" id="fromStation" required minlength="3">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="toStation">To Station</label>
+                        <input type="text" id="toStation" required minlength="3">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="trainNumber">Train Number</label>
+                        <input type="text" id="trainNumber" pattern="[0-9]{5}" title="5-digit train number" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="trainName">Train Name</label>
+                        <input type="text" id="trainName" required>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="departureDate">Departure Date</label>
+                        <input type="date" id="departureDate" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="departureTime">Departure Time</label>
+                        <input type="time" id="departureTime" required>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Pricing -->
+            <div class="form-section">
+                <h2>Pricing Details</h2>
+                
+                <div class="form-group">
+                    <label for="originalPrice">Original Price (₹)</label>
+                    <input type="number" id="originalPrice" min="10" step="10" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="sellingPrice">Your Asking Price (₹)</label>
+                    <input type="number" id="sellingPrice" min="10" step="10" required>
+                    <div class="hint">Max 10% above original price allowed</div>
+                    <div class="error" id="priceError"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="priceDrop">Auto Price Drop</label>
+                    <select id="priceDrop">
+                        <option value="5">5% every 6 hours</option>
+                        <option value="10" selected>10% every 12 hours</option>
+                        <option value="15">15% every 24 hours</option>
+                        <option value="0">No auto drop</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Contact Info -->
+            <div class="form-section">
+                <h2>Contact Information</h2>
+                <div class="form-group">
+                    <label for="contactNumber">Mobile Number</label>
+                    <input type="tel" id="contactNumber" pattern="[0-9]{10}" title="10-digit mobile number" required>
+                    <div class="hint">For buyer contact (visible after purchase)</div>
+                </div>
+            </div>
+            
+            <!-- Terms -->
+            <div class="form-group terms">
+                <input type="checkbox" id="agreeTerms" required>
+                <label for="agreeTerms">I confirm this ticket is genuine and I agree to the <a href="terms.html" target="_blank">Terms of Service</a></label>
+            </div>
+            
+            <!-- Submit -->
+            <div class="form-actions">
+                <button type="submit" class="btn primary">List Ticket for Sale</button>
+                <button type="button" class="btn secondary" onclick="clearForm()">Clear Form</button>
+            </div>
+        </form>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="copyright">
+                &copy; 2025 TrainHawk Technologies. All rights reserved.
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // JSONBin Configuration
+        const API_KEY = '$2a$10$6n8X61LVRh8bI6Grq4IDMuWbHKnBi5z3xmrQ8oxry3k0oUvSTj8ie';
+        const BIN_ID = '67f2dbc28561e97a50f9e0f9';
+        const TICKETS_BIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+        const USERS_BIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+        
+        const headers = {
+            'Content-Type': 'application/json',
+            'X-Master-Key': API_KEY,
+            'X-Bin-Versioning': 'false'
+        };
+
+        // Security Functions
+        function sanitizeInput(input) {
+            if (!input) return '';
+            return input.toString()
+                .replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+                .replace(/\//g, '&#x2F;');
+        }
+
+        function validatePhone(phone) {
+            return /^[0-9]{10}$/.test(phone);
+        }
+
+        function validatePNR(pnr) {
+            return /^[A-Za-z0-9]{10}$/.test(pnr);
+        }
+
+        // Form Validation
+        function validateTicketForm() {
+            resetErrors();
+            let isValid = true;
+            
+            // PNR Validation
+            const pnr = document.getElementById('pnrNumber').value.trim();
+            if (!validatePNR(pnr)) {
+                showError('pnrError', 'Please enter a valid 10-digit PNR');
+                isValid = false;
+            }
+            
+            // Price Validation
+            const originalPrice = parseFloat(document.getElementById('originalPrice').value);
+            const sellingPrice = parseFloat(document.getElementById('sellingPrice').value);
+            
+            if (sellingPrice > originalPrice * 1.1) {
+                showError('priceError', 'Selling price cannot exceed 10% above original');
+                isValid = false;
+            }
+            
+            if (sellingPrice < originalPrice * 0.5) {
+                showError('priceError', 'Selling price cannot be less than 50% of original');
+                isValid = false;
+            }
+            
+            // Contact Validation
+            const contact = document.getElementById('contactNumber').value.trim();
+            if (!validatePhone(contact)) {
+                showError('contactError', 'Please enter a valid 10-digit number');
+                isValid = false;
+            }
+            
+            if (isValid) {
+                submitTicketForm();
+            }
+            
+            return false;
+        }
+        
+        function resetErrors() {
+            const errors = document.querySelectorAll('.error');
+            errors.forEach(error => error.textContent = '');
+        }
+        
+        function showError(id, message) {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = message;
+            }
+        }
+        
+        // Form Submission
+        async function submitTicketForm() {
+            try {
+                // Get current user
+                const user = JSON.parse(localStorage.getItem('currentUser') || sessionStorage.getItem('currentUser'));
+                if (!user || !user.id) {
+                    throw new Error('User session invalid');
+                }
+                
+                // Get existing tickets
+                const ticketsResponse = await fetch(TICKETS_BIN_URL, { headers });
+                const ticketsData = await ticketsResponse.json();
+                const allTickets = ticketsData.record?.tickets || [];
+                
+                // Check for duplicate PNR
+                const pnr = document.getElementById('pnrNumber').value.trim();
+                if (allTickets.some(t => t.pnr === pnr)) {
+                    showError('pnrError', 'This PNR is already listed');
+                    return;
+                }
+                
+                // Create new ticket
+                const newTicket = {
+                    id: 'T' + Date.now().toString(),
+                    pnr: sanitizeInput(pnr),
+                    fromStation: sanitizeInput(document.getElementById('fromStation').value.trim()),
+                    toStation: sanitizeInput(document.getElementById('toStation').value.trim()),
+                    trainNumber: sanitizeInput(document.getElementById('trainNumber').value.trim()),
+                    trainName: sanitizeInput(document.getElementById('trainName').value.trim()),
+                    departure: new Date(
+                        document.getElementById('departureDate').value + 'T' + 
+                        document.getElementById('departureTime').value
+                    ).toISOString(),
+                    originalPrice: parseFloat(document.getElementById('originalPrice').value),
+                    sellingPrice: parseFloat(document.getElementById('sellingPrice').value),
+                    priceDropRate: parseInt(document.getElementById('priceDrop').value),
+                    contactNumber: document.getElementById('contactNumber').value.trim(),
+                    sellerId: user.id,
+                    createdAt: new Date().toISOString(),
+                    status: 'active',
+                    views: 0
+                };
+                
+                // Update JSONBin
+                const updatedTickets = [...allTickets, newTicket];
+                const updateResponse = await fetch(TICKETS_BIN_URL, {
+                    method: 'PUT',
+                    headers,
+                    body: JSON.stringify({ tickets: updatedTickets })
+                });
+                
+                if (updateResponse.ok) {
+                    // Success - redirect to dashboard
+                    window.location.href = 'dashboard.html?listing_success=true';
+                } else {
+                    throw new Error('Failed to update ticket database');
+                }
+            } catch (error) {
+                console.error('Ticket submission error:', error);
+                alert('An error occurred while listing your ticket. Please try again.');
+            }
+        }
+        
+        // Clear form
+        function clearForm() {
+            document.getElementById('ticketForm').reset();
+            resetErrors();
+        }
+        
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set minimum date to today
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('departureDate').min = today;
+            
+            // Auto-calculate selling price
+            document.getElementById('originalPrice').addEventListener('change', function() {
+                const original = parseFloat(this.value);
+                if (original && !document.getElementById('sellingPrice').value) {
+                    document.getElementById('sellingPrice').value = Math.ceil(original * 1.05);
+                }
+            });
+            
+            // Check auth state for nav
+            const user = localStorage.getItem('currentUser') || sessionStorage.getItem('currentUser');
+            const authLinks = document.getElementById('authLinks');
+            
+            if (user) {
+                try {
+                    const userData = JSON.parse(user);
+                    authLinks.innerHTML = `
+                        <a href="dashboard.html" class="user-profile">${sanitizeInput(userData.fullname || 'My Account')}</a>
+                        <a href="#" onclick="logout()">Logout</a>
+                    `;
+                } catch (e) {
+                    localStorage.removeItem('currentUser');
+                    sessionStorage.removeItem('currentUser');
+                    authLinks.innerHTML = `
+                        <a href="login.html">Login</a>
+                        <a href="signup.html" class="btn small">Sign Up</a>
+                    `;
+                }
+            }
+        });
+        
+        function logout() {
+            localStorage.removeItem('currentUser');
+            sessionStorage.removeItem('currentUser');
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>
